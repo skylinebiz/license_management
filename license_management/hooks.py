@@ -44,7 +44,7 @@ app_license = "mit"
 
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}
-# doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
+doctype_list_js = {"User": "public/js/user_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
 
@@ -138,34 +138,23 @@ app_license = "mit"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"User": {
+		"validate": "license_management.overrides.user.validate_active_user_limit",
+	},
+}
 
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"license_management.tasks.all"
-# 	],
-# 	"daily": [
-# 		"license_management.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"license_management.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"license_management.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"license_management.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	"cron": {
+		# Daily at 12:00 AM (midnight) server time, fetch license information from the Laravel server.
+		"0 0 * * *": [
+			"license_management.license_management.doctype.license_information.license_information.fetch_license_information",
+		],
+	},
+}
 
 # Testing
 # -------

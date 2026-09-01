@@ -1,0 +1,83 @@
+{
+ "actions": [],
+ "creation": "2026-08-31 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "license_id",
+  "license_status",
+  "license_expiry",
+  "column_break_1",
+  "max_active_users",
+  "max_attachment_size",
+  "section_break_1",
+  "refresh_license_information"
+ ],
+ "fields": [
+  {
+   "fieldname": "license_id",
+   "fieldtype": "Data",
+   "label": "License ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "license_status",
+   "fieldtype": "Data",
+   "label": "License Status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "license_expiry",
+   "fieldtype": "Date",
+   "label": "License Expiry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "max_active_users",
+   "fieldtype": "Int",
+   "label": "Maximum Active User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "max_attachment_size",
+   "fieldtype": "Int",
+   "label": "Maximum Attachment Size (MB)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_1",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "refresh_license_information",
+   "fieldtype": "Button",
+   "label": "Refresh License Information"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-08-31 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "License Management",
+ "name": "License Information",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
