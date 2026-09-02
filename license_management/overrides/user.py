@@ -3,16 +3,19 @@
 
 import frappe
 from frappe import _
-
-EXCLUDED_USERS = ("Administrator", "Guest")
+from license_management.license_management.doctype.license_information.license_information import (
+	EXCLUDED_USERS,
+	get_user_counts,
+)
 
 
 def validate_active_user_limit(doc, method=None):
 	"""Hooked on User's `validate` event (runs on every `doc.save()`).
 
-	Blocks the creation of a new, enabled User once the number of active
-	users (excluding Administrator/Guest) has reached the Maximum Active
-	User limit configured on the License Information doctype.
+	The User is always allowed to save. If creating a new, enabled User
+	would push the active-user count (excluding Administrator/Guest) past
+	the Maximum Active User limit on the License Information doctype, the
+	User is saved as disabled instead, with a warning alert shown.
 	"""
 	# Only enforce the limit when a brand new active user is being created.
 	if not doc.is_new():
@@ -30,17 +33,16 @@ def validate_active_user_limit(doc, method=None):
 		# No limit configured on the license yet, nothing to enforce.
 		return
 
-	current_active_users = frappe.db.count(
-		"User",
-		filters={
-			"enabled": 1,
-			"name": ["not in", list(EXCLUDED_USERS)],
-		},
-	)
+	_total_users, current_active_users = get_user_counts()
 
 	if current_active_users >= max_active_users:
-		frappe.throw(
+		doc.enabled = 0
+		frappe.msgprint(
 			_(
-				"Cannot create User. It exceeds the Maximum Active User limit ({0}) allowed by your License."
-			).format(max_active_users)
+				"Maximum Active User limit ({0}) reached. This User has been created as disabled. "
+				"To enable more users, please contact your license provider."
+			).format(max_active_users),
+			title=_("License Limit Reached"),
+			indicator="orange",
+			alert=True,
 		)

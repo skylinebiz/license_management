@@ -4,11 +4,15 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from frappe.utils import cint
 
 # Path template on the Laravel license server. The server itself (LARAVEL_SERVER)
 # is expected to be configured per site, e.g.:
 #   bench --site <site> set-config laravel_server "https://license.example.com"
 LICENSE_ENDPOINT = "/api/license/{host}"
+
+# Users that don't count towards the license's active-user limit or usage reporting.
+EXCLUDED_USERS = ("Administrator", "Guest")
 
 
 class LicenseInformation(Document):
@@ -18,6 +22,21 @@ class LicenseInformation(Document):
 def get_current_host():
 	"""Return the current site's host, e.g. 'license.test'."""
 	return frappe.local.site
+
+
+def get_user_counts():
+	"""Return (total_users, active_users), excluding Administrator/Guest."""
+	filters = {"name": ["not in", list(EXCLUDED_USERS)]}
+	total_users = frappe.db.count("User", filters=filters)
+	active_users = frappe.db.count("User", filters={**filters, "enabled": 1})
+	return total_users, active_users
+
+
+def apply_simultaneous_sessions(simultaneous_sessions):
+	"""Bulk-set the "Simultaneous Sessions" limit on every User to the license's value."""
+	if simultaneous_sessions is None:
+		return
+	frappe.db.set_value("User", {}, "simultaneous_sessions", cint(simultaneous_sessions))
 
 
 def get_license_api_url(host=None):
@@ -34,15 +53,24 @@ def get_license_api_url(host=None):
 	return laravel_server.rstrip("/") + LICENSE_ENDPOINT.format(host=host)
 
 
-def _call_license_api(host=None):
-	"""GET the raw license payload for `host` from the Laravel server."""
+def _call_license_api(host=None, total_users=None, active_users=None):
+	"""GET the raw license payload for `host` from the Laravel server.
+
+	Also reports the site's current total/active user counts as query params,
+	so the license server can track usage alongside validating the license.
+	"""
 	import requests
 
 	host = host or get_current_host()
 	url = get_license_api_url(host)
+	params = {}
+	if total_users is not None:
+		params["total_users"] = total_users
+	if active_users is not None:
+		params["active_users"] = active_users
 
 	try:
-		response = requests.get(url, timeout=30)
+		response = requests.get(url, params=params, timeout=30)
 		response.raise_for_status()
 		return response.json()
 	except Exception:
@@ -55,9 +83,11 @@ def fetch_license_information():
 
 	Called daily by the scheduler (see hooks.py) and on-demand via the
 	"Refresh License Information" button on the License Information doctype
-	and the "Refresh License" button on the User list.
+	and the "Refresh License" button on the User list. Also reports the
+	current total/active user counts to the license server.
 	"""
-	data = _call_license_api()
+	total_users, active_users = get_user_counts()
+	data = _call_license_api(total_users=total_users, active_users=active_users)
 
 	license_doc = frappe.get_single("License Information")
 	license_doc.license_id = data.get("license_id")
@@ -75,9 +105,12 @@ def fetch_license_information():
 		# Frappe's file-size limit (frappe.utils.file_manager.get_max_file_size) reads
 		# "max_file_size" from the site config in bytes, so convert from MB here.
 		from frappe.installer import update_site_config
-		from frappe.utils import cint
 
 		update_site_config("max_file_size", cint(license_doc.max_attachment_size) * 1024 * 1024)
+
+	# Sync the license's session limit onto every User (core "Simultaneous Sessions" field).
+	apply_simultaneous_sessions(data.get("simultaneous_sessions"))
+	frappe.db.commit()
 
 	return license_doc
 
