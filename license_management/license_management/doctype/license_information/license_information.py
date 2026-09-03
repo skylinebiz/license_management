@@ -6,9 +6,9 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import cint
 
-# Path template on the Laravel license server. The server itself (LARAVEL_SERVER)
+# Path template on the license server. The server itself (license_server)
 # is expected to be configured per site, e.g.:
-#   bench --site <site> set-config laravel_server "https://license.example.com"
+#   bench --site <site> set-config license_server "https://license.example.com"
 LICENSE_ENDPOINT = "/api/license/{host}"
 
 # Users that don't count towards the license's active-user limit or usage reporting.
@@ -127,21 +127,21 @@ def get_active_user_status():
 
 
 def get_license_api_url(host=None):
-	"""Build the full URL of the Laravel license validation endpoint for `host`."""
-	laravel_server = frappe.conf.get("laravel_server")
-	if not laravel_server:
+	"""Build the full URL of the license server validation endpoint for `host`."""
+	license_server = frappe.conf.get("license_server")
+	if not license_server:
 		frappe.throw(
 			_(
-				"Laravel Server is not configured. Please set 'laravel_server' in the site config."
+				"License Server is not configured. Please set 'license_server' in the site config."
 			)
 		)
 
 	host = host or get_current_host()
-	return laravel_server.rstrip("/") + LICENSE_ENDPOINT.format(host=host)
+	return license_server.rstrip("/") + LICENSE_ENDPOINT.format(host=host)
 
 
 def _call_license_api(host=None, total_users=None, active_users=None):
-	"""GET the raw license payload for `host` from the Laravel server.
+	"""GET the raw license payload for `host` from the License server.
 
 	Also reports the site's current total/active user counts as query params,
 	so the license server can track usage alongside validating the license.
@@ -166,7 +166,7 @@ def _call_license_api(host=None, total_users=None, active_users=None):
 
 
 def fetch_license_information():
-	"""Call the Laravel license API and update the License Information single.
+	"""Call the License Server API and update the License Information single.
 
 	Called daily by the scheduler (see hooks.py) and on-demand via the
 	"Refresh License Information" button on the License Information doctype
@@ -182,7 +182,7 @@ def fetch_license_information():
 	license_doc.license_expiry = (
 		frappe.utils.getdate(data.get("license_expiry")) if data.get("license_expiry") else None
 	)
-	# Laravel returns "max_active_user" (singular) and "max_attachment_size_mb".
+	# Server returns "max_active_user" (singular) and "max_attachment_size_mb".
 	license_doc.max_active_users = data.get("max_active_user")
 	license_doc.max_attachment_size = data.get("max_attachment_size_mb")
 	license_doc.save(ignore_permissions=True)
