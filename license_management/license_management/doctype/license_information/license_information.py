@@ -39,6 +39,35 @@ def apply_simultaneous_sessions(simultaneous_sessions):
 	frappe.db.set_value("User", {}, "simultaneous_sessions", cint(simultaneous_sessions))
 
 
+def save_license_provider(provider):
+	"""Save the license provider's name/email (from the API's "provider" object)
+	into the site config, so error/warning messages can point users to them.
+	"""
+	if not provider:
+		return
+
+	from frappe.installer import update_site_config
+
+	name = provider.get("name")
+	email = provider.get("email")
+	if name:
+		update_site_config("license_provider_name", name)
+	if email:
+		update_site_config("license_provider_email", email)
+
+
+def get_provider_contact_line():
+	"""A "contact your license provider" phrase, using site config details when set."""
+	name = frappe.conf.get("license_provider_name")
+	email = frappe.conf.get("license_provider_email")
+
+	if name and email:
+		return _("please contact your license provider {0} at {1}").format(name, email)
+	if email:
+		return _("please contact your license provider at {0}").format(email)
+	return _("please contact your license provider")
+
+
 def notify_active_user_overage(active_users, max_active_users):
 	"""Alert System Managers when active users already exceed the license's limit.
 
@@ -61,8 +90,8 @@ def notify_active_user_overage(active_users, max_active_users):
 	subject = _(
 		"Active users ({0}) exceed the Maximum Active User limit ({1}) allowed by your License. "
 		"No users were disabled automatically — please review and disable users as needed, "
-		"or contact your license provider to raise the limit."
-	).format(active_users, max_active_users)
+		"or {2} to raise the limit."
+	).format(active_users, max_active_users, get_provider_contact_line())
 
 	enqueue_create_notification(
 		system_managers,
@@ -92,6 +121,8 @@ def get_active_user_status():
 		"total_users": total_users,
 		"active_users": active_users,
 		"max_active_users": max_active_users,
+		"provider_name": frappe.conf.get("license_provider_name"),
+		"provider_email": frappe.conf.get("license_provider_email"),
 	}
 
 
@@ -166,6 +197,9 @@ def fetch_license_information():
 
 	# Sync the license's session limit onto every User (core "Simultaneous Sessions" field).
 	apply_simultaneous_sessions(data.get("simultaneous_sessions"))
+
+	# Save the license provider's contact details for use in messages/errors.
+	save_license_provider(data.get("provider"))
 	frappe.db.commit()
 
 	# The limit may have just been lowered below the current active-user count.
