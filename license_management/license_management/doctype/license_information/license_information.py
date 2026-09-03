@@ -39,6 +39,62 @@ def apply_simultaneous_sessions(simultaneous_sessions):
 	frappe.db.set_value("User", {}, "simultaneous_sessions", cint(simultaneous_sessions))
 
 
+def notify_active_user_overage(active_users, max_active_users):
+	"""Alert System Managers when active users already exceed the license's limit.
+
+	Deliberately does not touch any existing User — disabling someone's account
+	automatically on a license downgrade is disruptive and not done here. This
+	only raises visibility (a Notification Log for every System Manager) so a
+	human can decide who, if anyone, to disable. New-user creation is still
+	auto-disabled-with-warning by license_management.overrides.user.
+	"""
+	if not max_active_users or active_users <= max_active_users:
+		return
+
+	from frappe.desk.doctype.notification_log.notification_log import enqueue_create_notification
+	from frappe.utils.user import get_system_managers
+
+	system_managers = get_system_managers(only_name=True)
+	if not system_managers:
+		return
+
+	subject = _(
+		"Active users ({0}) exceed the Maximum Active User limit ({1}) allowed by your License. "
+		"No users were disabled automatically — please review and disable users as needed, "
+		"or contact your license provider to raise the limit."
+	).format(active_users, max_active_users)
+
+	enqueue_create_notification(
+		system_managers,
+		{
+			"subject": subject,
+			"type": "Alert",
+			"document_type": "License Information",
+			"document_name": "License Information",
+			"link": "/app/license-information",
+		},
+		# Skip re-notifying for the same active/max combination; a fresh mismatch
+		# (either number changes) still raises a new notification.
+		dedupe_on=["document_type", "document_name", "subject"],
+	)
+
+
+@frappe.whitelist()
+def get_active_user_status():
+	"""Current user counts alongside the license's Maximum Active User limit.
+
+	Used by the License Information form to show a live over-limit banner.
+	"""
+	frappe.only_for("System Manager")
+	total_users, active_users = get_user_counts()
+	max_active_users = frappe.db.get_single_value("License Information", "max_active_users")
+	return {
+		"total_users": total_users,
+		"active_users": active_users,
+		"max_active_users": max_active_users,
+	}
+
+
 def get_license_api_url(host=None):
 	"""Build the full URL of the Laravel license validation endpoint for `host`."""
 	laravel_server = frappe.conf.get("laravel_server")
@@ -111,6 +167,10 @@ def fetch_license_information():
 	# Sync the license's session limit onto every User (core "Simultaneous Sessions" field).
 	apply_simultaneous_sessions(data.get("simultaneous_sessions"))
 	frappe.db.commit()
+
+	# The limit may have just been lowered below the current active-user count.
+	# Never auto-disable existing users for this — just alert System Managers.
+	notify_active_user_overage(active_users, license_doc.max_active_users)
 
 	return license_doc
 
