@@ -24,9 +24,14 @@ def get_current_host():
 	return frappe.local.site
 
 
-def get_user_counts():
-	"""Return (total_users, active_users), excluding Administrator/Guest."""
-	filters = {"name": ["not in", list(EXCLUDED_USERS)]}
+def get_user_counts(exclude=None):
+	"""Return (total_users, active_users), excluding Administrator/Guest and, if given,
+	any extra user names in `exclude` (e.g. the user currently executing a check, so
+	that a limit check never errors out on account of the very user running it —
+	for instance if they happen to be the last active user).
+	"""
+	excluded = set(EXCLUDED_USERS) | set(exclude or [])
+	filters = {"name": ["not in", list(excluded)]}
 	total_users = frappe.db.count("User", filters=filters)
 	active_users = frappe.db.count("User", filters={**filters, "enabled": 1})
 	return total_users, active_users
