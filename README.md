@@ -6,11 +6,11 @@ Manages the license of the site by syncing with an external license server, enfo
 
 ### Description
 
-- **License Information** — a read-only Single doctype showing License ID, License Status, License Expiry, Maximum Active User, and Maximum Attachment Size (MB), with a "Refresh License Information" button to pull the latest data on demand.
+- **License Information** — a read-only Single doctype showing License ID, License Status, License Expiry, Maximum Active User, Maximum Attachment Size (MB), and Max User Session Allowed (defaults to 1), with a "Refresh License Information" button to pull the latest data on demand.
 - **Refresh License** — a matching button on the User list view for quick access to the same refresh action.
-- **Daily sync** — a scheduled job calls the license server every day at 12:00 PM and updates License Information automatically, reporting the site's current total/active user counts alongside the check.
+- **Daily sync** — a scheduled job calls the license server every day at 12:00 AM and updates License Information automatically, reporting the site's current total/active user counts alongside the check.
 - **Active user limit, enforced without locking anyone out** — creating a new User, or manually re-enabling a disabled one, is kept disabled once active users (excluding Administrator/Guest) reach the license's Maximum Active User value, with a message naming your license provider. Users who are already active are never auto-disabled — if a license downgrade puts you over the limit, System Managers get a Notification Log alert and a live over-limit banner/stats on the License Information form instead, so a person decides.
-- **Site behaviour synced from the license** — Maximum Attachment Size (MB) is written to the site's `max_file_size` config (bytes), and the license's Simultaneous Sessions value is applied to every User.
+- **Site behaviour synced from the license** — Maximum Attachment Size (MB) is written to the site's `max_file_size` config (bytes), and the license's Simultaneous Sessions value (shown as Max User Session Allowed) is applied to every User on each refresh and whenever a User is created or edited. Users on the license's exempt list (emails, managed from the license server UI) are left alone: the license never overwrites their Simultaneous Sessions, so any value saved on their User record is kept.
 
 ### Instructions
 

@@ -4,6 +4,14 @@ All notable changes to License Management are documented in this file.
 
 Versioning follows [Semantic Versioning](https://semver.org/): MAJOR for breaking changes, MINOR for backward-compatible features, and PATCH for backward-compatible fixes.
 
+## [2.0.0] - 2026-10-16
+
+### Added
+
+- `Max User Session Allowed` field on `License Information` (read-only, defaults to 1), populated from the license server's `simultaneous_sessions` on every refresh.
+- User `validate` hook: every User create/edit now sets "Simultaneous Sessions" to Max User Session Allowed (1 if unset), so a hand-edited value can't outlive the next save.
+- Session-limit exemptions: Exempt users (matched by user name or email, case-insensitively) are skipped by both the refresh sync and the User `validate` hook, so any "Simultaneous Sessions" value saved on their User record (2, 5, 10, ...) is kept; everyone else follows Max User Session Allowed.
+
 ## [1.0.0] - 2026-09-04
 
 ### Added
