@@ -140,7 +140,10 @@ doctype_list_js = {"User": "public/js/user_list.js"}
 
 doc_events = {
 	"User": {
-		"validate": "license_management.overrides.user.validate_active_user_limit",
+		"validate": [
+			"license_management.overrides.user.validate_active_user_limit",
+			"license_management.overrides.user.set_simultaneous_sessions",
+		],
 	},
 }
 

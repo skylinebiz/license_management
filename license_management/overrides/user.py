@@ -5,8 +5,10 @@ import frappe
 from frappe import _
 from license_management.license_management.doctype.license_information.license_information import (
 	EXCLUDED_USERS,
+	get_max_user_session_allowed,
 	get_provider_contact_line,
 	get_user_counts,
+	is_session_exempt,
 )
 
 
@@ -78,3 +80,14 @@ def validate_active_user_limit(doc, method=None):
 			indicator="orange",
 			alert=True,
 		)
+
+
+def set_simultaneous_sessions(doc, method=None):
+	"""Hooked on User's `validate` (every create and edit): pin "Simultaneous Sessions" to the
+	license's Max User Session Allowed (1 if unset), so a hand-edited value can't outlive the
+	next save. Users on the license server's exempt list are skipped: whatever value is set on
+	their User record (2, 5, 10, ...) is kept."""
+	if is_session_exempt(doc.name, doc.email):
+		return
+
+	doc.simultaneous_sessions = get_max_user_session_allowed()

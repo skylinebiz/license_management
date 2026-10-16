@@ -37,11 +37,43 @@ def get_user_counts(exclude=None):
 	return total_users, active_users
 
 
+def get_max_user_session_allowed():
+	"""The license's per-user simultaneous-session limit (License Information); 1 if unset."""
+	return cint(frappe.db.get_single_value("License Information", "max_user_session_allowed")) or 1
+
+
+def get_session_exempt_emails():
+	"""Lower-cased emails of users the license server exempts from the session limit."""
+	value = frappe.db.get_single_value("License Information", "session_exempt_users") or ""
+	return {line.strip().lower() for line in value.splitlines() if line.strip()}
+
+
+def is_session_exempt(user_name, user_email=None):
+	"""True if the license server exempts this user (matched by user name or email,
+	case-insensitively) from the simultaneous-session limit."""
+	identities = {(user_name or "").lower(), (user_email or "").lower()}
+	return bool(identities & get_session_exempt_emails())
+
+
 def apply_simultaneous_sessions(simultaneous_sessions):
-	"""Bulk-set the "Simultaneous Sessions" limit on every User to the license's value."""
+	"""Bulk-set the "Simultaneous Sessions" limit on every User to the license's value, leaving
+	users exempted by the license server (matched by name or email) untouched."""
 	if simultaneous_sessions is None:
 		return
-	frappe.db.set_value("User", {}, "simultaneous_sessions", cint(simultaneous_sessions))
+
+	exempt_emails = list(get_session_exempt_emails())
+	exempt_users = (
+		frappe.get_all(
+			"User",
+			or_filters={"name": ["in", exempt_emails], "email": ["in", exempt_emails]},
+			pluck="name",
+		)
+		if exempt_emails
+		else []
+	)
+
+	filters = {"name": ["not in", exempt_users]} if exempt_users else {}
+	frappe.db.set_value("User", filters, "simultaneous_sessions", cint(simultaneous_sessions))
 
 
 def save_license_provider(provider):
@@ -190,6 +222,14 @@ def fetch_license_information():
 	# Server returns "max_active_user" (singular) and "max_attachment_size_mb".
 	license_doc.max_active_users = data.get("max_active_user")
 	license_doc.max_attachment_size = data.get("max_attachment_size_mb")
+	# Server returns "simultaneous_sessions"; if it's absent keep the stored value (defaults to 1).
+	if data.get("simultaneous_sessions") is not None:
+		license_doc.max_user_session_allowed = cint(data.get("simultaneous_sessions"))
+	# Users exempt from that limit (emails); if absent keep what is stored.
+	if data.get("session_exempt_emails") is not None:
+		license_doc.session_exempt_users = "\n".join(
+			str(email).strip().lower() for email in data["session_exempt_emails"] if email
+		)
 	license_doc.save(ignore_permissions=True)
 	frappe.db.commit()
 
