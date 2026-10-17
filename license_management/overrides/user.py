@@ -5,8 +5,10 @@ import frappe
 from frappe import _
 from license_management.license_management.doctype.license_information.license_information import (
 	EXCLUDED_USERS,
+	get_max_user_session_allowed,
 	get_provider_contact_line,
 	get_user_counts,
+	is_session_exempt,
 )
 
 
@@ -52,7 +54,13 @@ def validate_active_user_limit(doc, method=None):
 		# No limit configured on the license yet, nothing to enforce.
 		return
 
-	_total_users, current_active_users = get_user_counts()
+	# Only exclude the executing user from the count when they ARE the record being
+	# (re)activated — a defensive guard for self-referential edge cases (e.g. an
+	# impersonated or otherwise-active session tied to a disabled account). Excluding
+	# them while they act on a *different* user would undercount real active users
+	# by one and let the true total slip past the limit, so this must stay narrow.
+	exclude = [frappe.session.user] if doc.name == frappe.session.user else None
+	_total_users, current_active_users = get_user_counts(exclude=exclude)
 
 	if current_active_users >= max_active_users:
 		doc.enabled = 0
@@ -72,3 +80,14 @@ def validate_active_user_limit(doc, method=None):
 			indicator="orange",
 			alert=True,
 		)
+
+
+def set_simultaneous_sessions(doc, method=None):
+	"""Hooked on User's `validate` (every create and edit): pin "Simultaneous Sessions" to the
+	license's Max User Session Allowed (1 if unset), so a hand-edited value can't outlive the
+	next save. Users on the license server's exempt list are skipped: whatever value is set on
+	their User record (2, 5, 10, ...) is kept."""
+	if is_session_exempt(doc.name, doc.email):
+		return
+
+	doc.simultaneous_sessions = get_max_user_session_allowed()
