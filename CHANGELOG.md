@@ -4,6 +4,12 @@ All notable changes to License Management are documented in this file.
 
 Versioning follows [Semantic Versioning](https://semver.org/): MAJOR for breaking changes, MINOR for backward-compatible features, and PATCH for backward-compatible fixes.
 
+## [2.1.0] - 2026-11-03
+
+### Added
+
+- **App icon** — the app now has its own icon (an "LM" tile, `license-management-logo.svg`) on the Apps screen, opening License Information, set through `app_home` / `app_logo_url` / `add_to_apps_screen` in `hooks.py`.
+
 ## [2.0.0] - 2026-10-16
 
 ### Added
