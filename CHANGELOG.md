@@ -4,6 +4,12 @@ All notable changes to License Management are documented in this file.
 
 Versioning follows [Semantic Versioning](https://semver.org/): MAJOR for breaking changes, MINOR for backward-compatible features, and PATCH for backward-compatible fixes.
 
+## [2.1.1] - 2026-11-19
+
+### Changed
+
+- **App icon** — replaced the grey "LM" text tile with a drawn icon: a purple certificate with a seal, on a rounded square (`license-management-logo.svg`). It has no text, so it stays readable at sidebar size. Hard-refresh browsers to see it.
+
 ## [2.1.0] - 2026-11-03
 
 ### Added
